@@ -1,0 +1,35 @@
+#!/bin/bash
+# A bash script that displays information about domains
+
+# Function to display DNS record information
+display_dns_record() {
+    local record_type=$(echo "$1" | awk '{print $2}')
+    local destination=$(echo "$1" | awk '{print $4}')
+    echo "The subdomain $2 is a $record_type record and points to $destination"
+}
+
+# Check if domain is provided
+if [ -z "$1" ]; then
+    echo "Error: Domain is required."
+    exit 1
+fi
+
+# Default subdomain if not provided
+subdomain="www"
+if [! -z "$2" ]; then
+    subdomain="$2"
+fi
+
+# Query DNS records for the domain and subdomain
+for sub in www lb-01 web-01 web-02; do
+    if [ "$sub" == "$subdomain" ]; then
+        # Only query the specified subdomain
+        record=$(dig +short "$1.$sub" | grep -A1 'ANSWER SECTION:' | tail -n 1)
+        display_dns_record "$record"
+        break
+    else
+        # Query all subdomains
+        record=$(dig +short "$1.$sub" | grep -A1 'ANSWER SECTION:' | tail -n 1)
+        display_dns_record "$record"
+    fi
+done
