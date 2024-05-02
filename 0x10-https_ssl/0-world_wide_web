@@ -1,35 +1,36 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # A bash script that displays information about domains
 
-# Function to display DNS record information
-display_dns_record() {
-    local record_type=$(echo "$1" | awk '{print $2}')
-    local destination=$(echo "$1" | awk '{print $4}')
-    echo "The subdomain $2 is a $record_type record and points to $destination"
+# Function to display information about a subdomain
+get_subdomain_info() {
+    local domain="$1"
+    local subdomain="$2"
+
+    # Query DNS records for the specified subdomain
+    local dns_info
+    dns_info=$(dig "$subdomain.$domain" | awk '/ANSWER SECTION/ {getline; print}')
+
+    # Parse the DNS information and extract relevant details
+    local record_type
+    record_type=$(echo "$dns_info" | awk '{print $4}')
+    local destination
+    destination=$(echo "$dns_info" | awk '{print $5}')
+
+    # Print the information in the required format
+    echo "The subdomain $subdomain is a $record_type record and points to $destination"
 }
 
-# Check if domain is provided
-if [ -z "$1" ]; then
-    echo "Error: Domain is required."
-    exit 1
-fi
+# Main script starts here
+domain="$1"
+subdomain="$2"
 
-# Default subdomain if not provided
-subdomain="www"
-if [! -z "$2" ]; then
-    subdomain="$2"
+# If subdomain is not specified, display information for default subdomains
+if [ -z "$subdomain" ]; then
+    get_subdomain_info "$domain" "www"
+    get_subdomain_info "$domain" "lb-01"
+    get_subdomain_info "$domain" "web-01"
+    get_subdomain_info "$domain" "web-02"
+else
+    # Display information for the specified subdomain
+    get_subdomain_info "$domain" "$subdomain"
 fi
-
-# Query DNS records for the domain and subdomain
-for sub in www lb-01 web-01 web-02; do
-    if [ "$sub" == "$subdomain" ]; then
-        # Only query the specified subdomain
-        record=$(dig +short "$1.$sub" | grep -A1 'ANSWER SECTION:' | tail -n 1)
-        display_dns_record "$record"
-        break
-    else
-        # Query all subdomains
-        record=$(dig +short "$1.$sub" | grep -A1 'ANSWER SECTION:' | tail -n 1)
-        display_dns_record "$record"
-    fi
-done
